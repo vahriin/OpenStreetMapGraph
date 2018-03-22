@@ -1,7 +1,6 @@
 package com.company;
 
 import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import javax.xml.stream.events.XMLEvent;
@@ -11,18 +10,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.io.File;
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
 
 public class Main {
 
@@ -30,7 +18,6 @@ public class Main {
     private Map<Long, Node_Coordinates> nodes = new HashMap<>();
     private Map<Long, LinkedHashSet<Long>> adjacency_list = new HashMap<>(); // <node_id, adjacency_node_ids>
     private HashSet<String> roads = new HashSet<>();
-    private static final String FILENAME = "Krasnoyarsk.osm";
 
     public static void main(String[] args) throws Exception {
         long start_time = System.currentTimeMillis();
@@ -55,26 +42,23 @@ public class Main {
             while (processor.startElement("node", "way"))   // Maped all nodes to all_nodes
                 all_nodes.put(Long.parseLong(processor.getAttribute("id")), new Node_Coordinates(Double.parseDouble(processor.getAttribute("lat")), Double.parseDouble(processor.getAttribute("lon"))));
 
-            int count = 0;
-            while (processor.startElement("way", "relation")){ // Maped all ways
+            do{ // Maped all ways
                 ArrayList<Long> temp_list = new ArrayList<>();
 
                 while (processor.startElement("nd", "tag"))
                     if (all_nodes.containsKey(Long.parseLong(processor.getAttribute("ref"))))
                         temp_list.add(Long.parseLong(processor.getAttribute("ref")));
 
-                while (processor.startElement("tag", "way"))
-                    if ("highway".equals(processor.getAttribute("k")) && roads.contains(processor.getAttribute("v")) && temp_list.size() > 1) {
-                        count++;
+                do {
+                    if ("highway".equals(processor.getAttribute("k")) && roads.contains(processor.getAttribute("v")) && temp_list.size() > 1)
                         for (int i = 0; i < temp_list.size(); ++i) {
                             adjacency_list.putIfAbsent(temp_list.get(i), new LinkedHashSet<>((i - 1 < 0) ? Collections.singletonList(temp_list.get(i + 1)) : (i + 1 == temp_list.size()) ? Collections.singletonList(temp_list.get(i - 1)) : Arrays.asList(temp_list.get(i - 1), temp_list.get(i + 1))));
                             nodes.put(temp_list.get(i), all_nodes.get(temp_list.get(i)));
                         }
-                    }
-            }
-            System.out.printf(all_nodes.size() + "    " + nodes.size() + "             count = " + count);
-            nodes.forEach((k, v) -> v.set_coordinates());
+                }while (processor.startElement("tag", "way"));
+            }while (processor.startElement("way", "relation"));
 
+            nodes.forEach((k, v) -> v.set_coordinates());
             printCSV();
             createSVG();
         }
@@ -126,7 +110,6 @@ public class Main {
 }
 
 class CSVUtils {
-
     private static final char DEFAULT_SEPARATOR = ',';
 
     private static String followCVSformat(String value) {
@@ -134,7 +117,6 @@ class CSVUtils {
         if (result.contains("\""))
             result = result.replace("\"", "\"\"");
         return result;
-
     }
     static void writeLine(Writer w, List<String> values, char separators) throws IOException {
         boolean first = true;
@@ -219,8 +201,6 @@ class StreamProcessor implements AutoCloseable {
     private static final XMLInputFactory FACTORY = XMLInputFactory.newInstance();
 
     private final XMLStreamReader reader;
-    private boolean flag = true;
-    private int event;
 
     StreamProcessor(InputStream is) throws XMLStreamException {
         reader = FACTORY.createXMLStreamReader(is);
@@ -228,26 +208,15 @@ class StreamProcessor implements AutoCloseable {
 
     boolean startElement(String element, String stop_tag) throws XMLStreamException {
         while (reader.hasNext()) {
-            event = reader.next();
-            if (stop_tag != null && event == XMLEvent.END_ELEMENT && stop_tag.equals(reader.getLocalName())) {
-                flag = false;
-            }
-            if (event == XMLEvent.START_ELEMENT && element.equals(reader.getLocalName())) {
+            int event = reader.next();
+            if (event == XMLEvent.START_ELEMENT && element.equals(reader.getLocalName()))
                 return true;
-            }
-            if(event == XMLEvent.CHARACTERS){
-                if(!flag){
-                    flag = true;
-                    return false;
-                }
-            }
+            if(event == XMLEvent.START_ELEMENT && stop_tag.equals(reader.getLocalName()))
+                return false;
         }
         return false;
     }
 
-    void checker(){
-
-    }
     String getAttribute(String name) throws XMLStreamException {
         return reader.getAttributeValue(null, name);
     }
