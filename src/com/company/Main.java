@@ -1,16 +1,11 @@
 package com.company;
 
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamReader;
-import javax.xml.stream.events.XMLEvent;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.io.IOException;
 
 public class Main {
 
@@ -23,7 +18,7 @@ public class Main {
         long start_time = System.currentTimeMillis();
         new Main().run();
         long finish_time = System.currentTimeMillis();
-        System.out.printf("\n" + (finish_time - start_time) + " ms");
+        System.out.format("%d ms", finish_time - start_time);
     }
 
     private void run() throws Exception {
@@ -64,7 +59,6 @@ public class Main {
         }
     }
 
-
     private void printCSV() throws Exception{
         String CSV_Nodes_File = "Nodes.csv";
         String CSV_AdjList_File = "AdjList.csv";
@@ -97,8 +91,8 @@ public class Main {
             str = input.readLine();
             cheker = regular_exp.matcher(str);
         }
-        nodes.forEach((k,v) -> out.println("\t\t<circle r=\"0.5px\" fill=\"blue\"   transform=\"translate(" + v.get_variable("euclid_X") + "," + v.get_variable("euclid_Y") + ")\"/>"));
-        adjacency_list.forEach((k1, v1) -> v1.forEach(v2 -> { out.println("\t\t<line x1=\"" + nodes.get(k1).get_variable("euclid_X") + "\" y1=\"" + nodes.get(k1).get_variable("euclid_Y") + "\" x2=\"" + nodes.get(v2).get_variable("euclid_X") + "\" y2=\"" + nodes.get(v2).get_variable("euclid_Y") + "\" style=\"stroke:rgb(255,0,0);stroke-width:0.5\"/>"); adjacency_list.get(v2).remove(k1);}));
+        nodes.forEach((k,v) -> out.format(Locale.US, "\t\t<circle r=\"0.5px\" fill=\"blue\" transform=\"translate(%f,%f)\"/>\n", v.get_variable("euclid_X") , v.get_variable("euclid_Y")));
+        adjacency_list.forEach((k1, v1) -> v1.forEach(v2 -> { out.format(Locale.US, "\t\t<line x1=\"%f\" y1=\"%f\" x2=\"%f\" y2=\"%f\" style=\"stroke:rgb(255,0,0);stroke-width:0.5\"/>\n", nodes.get(k1).get_variable("euclid_X"), nodes.get(k1).get_variable("euclid_Y"), nodes.get(v2).get_variable("euclid_X"), nodes.get(v2).get_variable("euclid_Y")); adjacency_list.get(v2).remove(k1);}));
 
         do { // close tags of general rules
             out.println(str);
@@ -109,123 +103,3 @@ public class Main {
     }
 }
 
-class CSVUtils {
-    private static final char DEFAULT_SEPARATOR = ',';
-
-    private static String followCVSformat(String value) {
-        String result = value;
-        if (result.contains("\""))
-            result = result.replace("\"", "\"\"");
-        return result;
-    }
-    static void writeLine(Writer w, List<String> values, char separators) throws IOException {
-        boolean first = true;
-
-        if (separators == ' ')
-            separators = DEFAULT_SEPARATOR;
-
-        StringBuilder sb = new StringBuilder();
-        for (String value : values) {
-            if (!first)
-                sb.append(" ").append(separators).append(" ");
-            sb.append(followCVSformat(value));
-            first = false;
-        }
-        sb.append("\n");
-        w.append(sb.toString());
-    }
-}
-
-class Node_Coordinates{
-    private double lat, lon, euclid_X, euclid_Y;
-    final private static double R_MAJOR = 6378137.0;
-    final private static double R_MINOR = 6356752.3142;
-    final private static double Multiplier = 1E-2;
-    static double X, Y;
-
-    static double  mercX(double lon) { return R_MAJOR * Math.toRadians(lon); }
-
-    static double mercY(double lat) {
-        if (lat > 89.5) {
-            lat = 89.5;
-        }
-        if (lat < -89.5) {
-            lat = -89.5;
-        }
-        double temp = R_MINOR / R_MAJOR;
-        double es = 1.0 - (temp * temp);
-        double eccent = Math.sqrt(es);
-        double phi = Math.toRadians(lat);
-        double sinphi = Math.sin(phi);
-        double con = eccent * sinphi;
-        double com = 0.5 * eccent;
-        con = Math.pow(((1.0-con)/(1.0+con)), com);
-        double ts = Math.tan(0.5 * ((Math.PI*0.5) - phi))/con;
-        double y = 0 - R_MAJOR * Math.log(ts);
-        return y;
-    }
-
-    Node_Coordinates(double input_lat, double input_lon){
-        lat = input_lat;
-        lon = input_lon;
-        euclid_X = mercX(input_lon);
-        euclid_Y = mercY(input_lat);
-    }
-
-    void set_coordinates(){
-        euclid_X = (euclid_X - X) * Multiplier;
-        euclid_Y = (euclid_Y - Y) * Multiplier;
-    }
-
-    double get_variable(String variable_name){
-        switch (variable_name){
-            case "lat":
-                return lat;
-            case "lon":
-                return lon;
-            case "euclid_X":
-                return euclid_X;
-            case "euclid_Y":
-                return euclid_Y;
-        }
-        return 0;
-    }
-
-    @Override
-    public String toString() {
-        return " lat = " + lat + " lon = " + lon;
-    }
-}
-
-class StreamProcessor implements AutoCloseable {
-    private static final XMLInputFactory FACTORY = XMLInputFactory.newInstance();
-
-    private final XMLStreamReader reader;
-
-    StreamProcessor(InputStream is) throws XMLStreamException {
-        reader = FACTORY.createXMLStreamReader(is);
-    }
-
-    boolean startElement(String element, String stop_tag) throws XMLStreamException {
-        while (reader.hasNext()) {
-            int event = reader.next();
-            if (event == XMLEvent.START_ELEMENT && element.equals(reader.getLocalName()))
-                return true;
-            if(event == XMLEvent.START_ELEMENT && stop_tag.equals(reader.getLocalName()))
-                return false;
-        }
-        return false;
-    }
-
-    String getAttribute(String name) throws XMLStreamException {
-        return reader.getAttributeValue(null, name);
-    }
-
-    @Override
-    public void close() {
-        if (reader != null)
-            try {
-                reader.close();
-            }catch (XMLStreamException e) {}
-    }
-}
