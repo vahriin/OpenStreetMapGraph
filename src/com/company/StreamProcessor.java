@@ -11,17 +11,22 @@ public class StreamProcessor implements AutoCloseable{
 
     private final XMLStreamReader reader;
 
+    private boolean firstFlag = false;
+
     StreamProcessor(InputStream is) throws XMLStreamException {
         reader = FACTORY.createXMLStreamReader(is);
     }
 
     boolean startElement(String element, String stop_tag) throws XMLStreamException {
+        if (firstFlag && element.equals(reader.getLocalName()))
+            return !(firstFlag = false);
+
         while (reader.hasNext()) {
             int event = reader.next();
             if (event == XMLEvent.START_ELEMENT && element.equals(reader.getLocalName()))
-                return true;
+                return !(firstFlag = false);
             if(event == XMLEvent.START_ELEMENT && stop_tag.equals(reader.getLocalName()))
-                return false;
+                return !(firstFlag = true);
         }
         return false;
     }

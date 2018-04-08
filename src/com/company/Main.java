@@ -47,7 +47,7 @@ public class Main {
                 do {
                     if ("highway".equals(processor.getAttribute("k")) && roads.containsKey(processor.getAttribute("v")) && temp_list.size() > 1)
                         for (int i = 0; i < temp_list.size(); ++i) {
-                            adjacency_list.putIfAbsent(temp_list.get(i), new LinkedHashSet<>((i - 1 < 0) ? Collections.singletonList(temp_list.get(i + 1)) : (i + 1 == temp_list.size()) ? Collections.singletonList(temp_list.get(i - 1)) : Arrays.asList(temp_list.get(i - 1), temp_list.get(i + 1))));
+                            adjacency_list.compute(temp_list.get(i), (k, v) -> (v == null) ? new LinkedHashSet<>() : v).addAll((i - 1 < 0) ? Collections.singletonList(temp_list.get(i + 1)) : (i + 1 == temp_list.size()) ? Collections.singletonList(temp_list.get(i - 1)) : Arrays.asList(temp_list.get(i - 1), temp_list.get(i + 1)));
                             nodes.put(temp_list.get(i), all_nodes.get(temp_list.get(i)));
                         }
                 }while (processor.startElement("tag", "way"));
@@ -92,7 +92,7 @@ public class Main {
             cheker = regular_exp.matcher(str);
         }
         nodes.forEach((k,v) -> out.format(Locale.US, "\t\t<circle r=\"0.2px\" fill=\"blue\" transform=\"translate(%f,%f)\"/>\n", v.get_variable("euclid_X") , v.get_variable("euclid_Y")));
-        adjacency_list.forEach((k1, v1) -> v1.forEach(v2 -> { out.format(Locale.US, "\t\t<line x1=\"%f\" y1=\"%f\" x2=\"%f\" y2=\"%f\" style=\"stroke:rgb(255,0,0);stroke-width:0.4\"/>\n", nodes.get(k1).get_variable("euclid_X"), nodes.get(k1).get_variable("euclid_Y"), nodes.get(v2).get_variable("euclid_X"), nodes.get(v2).get_variable("euclid_Y")); adjacency_list.get(v2).remove(k1);}));
+        adjacency_list.forEach((k1, v1) -> v1.forEach(v2 -> { out.format(Locale.US, "\t\t<line x1=\"%f\" y1=\"%f\" x2=\"%f\" y2=\"%f\" style=\"stroke:rgb(255,0,0);stroke-width:0.4\"/>\n", nodes.get(k1).get_variable("euclid_X"), nodes.get(k1).get_variable("euclid_Y"), nodes.get(v2).get_variable("euclid_X"), nodes.get(v2).get_variable("euclid_Y"));}));
 
         do { // close tags of general rules
             out.println(str);
