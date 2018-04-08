@@ -1,2 +1,4 @@
 Input/Krasnoyarsk.osm
-.idea
+.idea/
+out/
+GraphOfCity.iml
